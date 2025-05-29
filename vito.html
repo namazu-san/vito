@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schiaccia la Nana</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: white;
+        }
+
+        .game-container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            margin: 0 0 20px 0;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            background: linear-gradient(45deg, #ff6b6b, #ffd93d);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            gap: 20px;
+        }
+
+        .stat {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px 25px;
+            border-radius: 15px;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        .game-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 15px;
+            margin: 30px 0;
+            max-width: 600px;
+        }
+
+        .hole {
+            width: 120px;
+            height: 120px;
+            background: radial-gradient(circle at center, #2c1810 0%, #1a0f08 100%);
+            border-radius: 50%;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 
+                inset 0 10px 20px rgba(0, 0, 0, 0.7),
+                0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .hole:hover {
+            transform: scale(1.05);
+        }
+
+        .mole {
+            width: 80px;
+            height: 80px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            border-radius: 50%;
+            transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            background-size: 70%;
+            background-position: center;
+            background-repeat: no-repeat;
+            border: 3px solid transparent;
+            overflow: hidden;
+        }
+
+        .mole.good {
+            background-color: rgba(255, 107, 107, 0.1);
+            box-shadow: 0 5px 20px rgba(255, 107, 107, 0.5);
+            border-color: #ff6b6b;
+        }
+
+        .mole.bad {
+            background-color: rgba(78, 205, 196, 0.1);
+            box-shadow: 0 5px 20px rgba(78, 205, 196, 0.5);
+            border-color: #4ecdc4;
+        }
+
+        .mole img {
+            width: 70%;
+            height: 70%;
+            object-fit: contain;
+            border-radius: 50%;
+        }
+
+        .mole.active {
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .mole.hit {
+            animation: hit 0.3s ease-out;
+        }
+
+        @keyframes hit {
+            0% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.3); }
+            100% { transform: translate(-50%, -50%) scale(0); }
+        }
+
+        .controls {
+            margin: 20px 0;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            margin: 0 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .game-over {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .game-over-content {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            transform: scale(0.8);
+            animation: popup 0.3s ease-out forwards;
+        }
+
+        @keyframes popup {
+            to { transform: scale(1); }
+        }
+
+        .score-popup {
+            position: absolute;
+            font-size: 1.5em;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 100;
+            animation: scoreFloat 1s ease-out forwards;
+        }
+
+        .score-popup.positive {
+            color: #4ade80;
+        }
+
+        .score-popup.negative {
+            color: #ef4444;
+        }
+
+        @keyframes scoreFloat {
+            0% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>🔨 Schiaccia la Nana</h1>
+        
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-label">Punteggio</div>
+                <div class="stat-value" id="score">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Livello</div>
+                <div class="stat-value" id="level">1</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Tempo</div>
+                <div class="stat-value" id="timer">60</div>
+            </div>
+        </div>
+
+        <div class="game-grid" id="gameGrid">
+            <!-- Le buche verranno generate dinamicamente -->
+        </div>
+
+        <div class="controls">
+            <button class="btn" id="startBtn" onclick="startGame()">Inizia Gioco</button>
+            <button class="btn" id="resetBtn" onclick="resetGame()">Reset</button>
+        </div>
+    </div>
+
+    <div class="game-over" id="gameOver">
+        <div class="game-over-content">
+            <h2>Game Over Anello!</h2>
+            <p id="finalScore">Punteggio finale: 0</p>
+            <p id="gameOverReason">Tempo scaduto!</p>
+            <button class="btn" onclick="closeGameOver()">Chiudi</button>
+        </div>
+    </div>
+
+    <script>
+        let score = 0;
+        let level = 1;
+        let gameActive = false;
+        let gameTimer = 60;
+        let timerInterval;
+        let moleInterval;
+        let activeMoles = [];
+        let difficulty = 1;
+        
+        // Immagini integrate nel gioco
+        const gameImages = {
+            good: 'obbiettivo.png',  // Immagine obiettivo da colpire
+            bad: 'bomba.png'         // Immagine bomba da evitare
+        };
+        
+        // Immagini default (emoji come fallback se le PNG non si caricano)
+        const defaultImages = {
+            good: '🎯',
+            bad: '💣'
+        };
+
+        // Inizializza la griglia
+        function initGrid() {
+            const grid = document.getElementById('gameGrid');
+            grid.innerHTML = '';
+            
+            for (let i = 0; i < 12; i++) {
+                const hole = document.createElement('div');
+                hole.className = 'hole';
+                hole.innerHTML = '<div class="mole" id="mole' + i + '"></div>';
+                hole.addEventListener('click', () => hitHole(i));
+                grid.appendChild(hole);
+            }
+        }
+
+        // Configura immagine della talpa
+        function setMoleImage(mole, isGood) {
+            const imagePath = isGood ? gameImages.good : gameImages.bad;
+            const defaultEmoji = isGood ? defaultImages.good : defaultImages.bad;
+            
+            // Prova a caricare l'immagine PNG
+            const img = document.createElement('img');
+            img.src = imagePath;
+            img.alt = isGood ? 'Obiettivo' : 'Bomba';
+            
+            // Gestione caricamento immagine
+            img.onload = function() {
+                // Immagine caricata correttamente
+                mole.innerHTML = '';
+                mole.appendChild(img);
+                mole.style.fontSize = '';
+            };
+            
+            img.onerror = function() {
+                // Fallback agli emoji se l'immagine non si carica
+                mole.innerHTML = defaultEmoji;
+                mole.style.fontSize = '2.5em';
+                mole.style.display = 'flex';
+                mole.style.alignItems = 'center';
+                mole.style.justifyContent = 'center';
+            };
+            
+            // Imposta subito l'emoji come placeholder durante il caricamento
+            mole.innerHTML = defaultEmoji;
+            mole.style.fontSize = '2.5em';
+        }
+
+        // Avvia il gioco
+        function startGame() {
+            if (gameActive) return;
+            
+            gameActive = true;
+            score = 0;
+            level = 1;
+            gameTimer = 60;
+            difficulty = 1;
+            activeMoles = [];
+            
+            updateDisplay();
+            document.getElementById('startBtn').textContent = 'In corso...';
+            document.getElementById('startBtn').disabled = true;
+            
+            // Timer principale
+            timerInterval = setInterval(() => {
+                gameTimer--;
+                updateDisplay();
+                
+                if (gameTimer <= 0) {
+                    endGame('Tempo scaduto!');
+                }
+            }, 1000);
+            
+            // Spawna le talpe
+            spawnMole();
+        }
+
+        // Spawna una talpa
+        function spawnMole() {
+            if (!gameActive) return;
+            
+            // Trova una buca libera
+            const availableHoles = [];
+            for (let i = 0; i < 12; i++) {
+                if (!activeMoles.find(m => m.hole === i)) {
+                    availableHoles.push(i);
+                }
+            }
+            
+            if (availableHoles.length === 0) return;
+            
+            const holeIndex = availableHoles[Math.floor(Math.random() * availableHoles.length)];
+            const mole = document.getElementById('mole' + holeIndex);
+            
+            // 70% probabilità talpa buona, 30% cattiva
+            const isGood = Math.random() < 0.6;
+            const duration = Math.max(800, 2000 - (difficulty * 200)); // Durata diminuisce con difficoltà
+            
+            mole.className = 'mole ' + (isGood ? 'good' : 'bad');
+            setMoleImage(mole, isGood);
+            mole.classList.add('active');
+            
+            const moleData = {
+                hole: holeIndex,
+                isGood: isGood,
+                element: mole,
+                timeout: setTimeout(() => {
+                    if (gameActive) {
+                        hideMole(holeIndex, true); // true = timeout
+                    }
+                }, duration)
+            };
+            
+            activeMoles.push(moleData);
+            
+            // Pianifica la prossima talpa
+            const nextSpawnTime = Math.max(500, 1500 - (difficulty * 150));
+            setTimeout(spawnMole, nextSpawnTime);
+        }
+
+        // Nascondi talpa
+        function hideMole(holeIndex, isTimeout = false) {
+            const moleIndex = activeMoles.findIndex(m => m.hole === holeIndex);
+            if (moleIndex === -1) return;
+            
+            const moleData = activeMoles[moleIndex];
+            
+            if (isTimeout && moleData.isGood) {
+                // Penalità per non aver colpito la talpa buona
+                changeScore(-12, holeIndex);
+            }
+            
+            moleData.element.classList.remove('active');
+            clearTimeout(moleData.timeout);
+            activeMoles.splice(moleIndex, 1);
+        }
+
+        // Gestione click sulla buca
+        function hitHole(holeIndex) {
+            if (!gameActive) return;
+            
+            const moleData = activeMoles.find(m => m.hole === holeIndex);
+            if (!moleData) return;
+            
+            const mole = moleData.element;
+            mole.classList.add('hit');
+            
+            if (moleData.isGood) {
+                changeScore(10, holeIndex);
+            } else {
+                // Colpita talpa cattiva - game over
+                endGame('Hai colpito il pericolo!');
+                return;
+            }
+            
+            hideMole(holeIndex);
+        }
+
+        // Cambia punteggio con animazione
+        function changeScore(points, holeIndex) {
+            score += points;
+            
+            // Animazione punteggio
+            const popup = document.createElement('div');
+            popup.className = 'score-popup ' + (points > 0 ? 'positive' : 'negative');
+            popup.textContent = (points > 0 ? '+' : '') + points;
+            
+            const hole = document.querySelectorAll('.hole')[holeIndex];
+            const rect = hole.getBoundingClientRect();
+            popup.style.left = rect.left + rect.width / 2 + 'px';
+            popup.style.top = rect.top + 'px';
+            
+            document.body.appendChild(popup);
+            setTimeout(() => popup.remove(), 1000);
+            
+            // Verifica game over per punteggio negativo
+            if (score < 0) {
+                endGame('Punteggio sotto zero!');
+                return;
+            }
+            
+            // Aumenta difficoltà ogni 50 punti
+            const newLevel = Math.floor(score / 50) + 1;
+            if (newLevel > level) {
+                level = newLevel;
+                difficulty = level;
+            }
+            
+            updateDisplay();
+        }
+
+        // Aggiorna display
+        function updateDisplay() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('level').textContent = level;
+            document.getElementById('timer').textContent = gameTimer;
+        }
+
+        // Termina gioco
+        function endGame(reason) {
+            gameActive = false;
+            clearInterval(timerInterval);
+            
+            // Nascondi tutte le talpe
+            activeMoles.forEach(mole => {
+                mole.element.classList.remove('active');
+                clearTimeout(mole.timeout);
+            });
+            activeMoles = [];
+            
+            document.getElementById('finalScore').textContent = 'Punteggio finale: ' + score;
+            document.getElementById('gameOverReason').textContent = reason;
+            document.getElementById('gameOver').style.display = 'flex';
+            
+            document.getElementById('startBtn').textContent = 'Inizia Gioco';
+            document.getElementById('startBtn').disabled = false;
+        }
+
+        // Chiudi schermata game over
+        function closeGameOver() {
+            document.getElementById('gameOver').style.display = 'none';
+        }
+
+        // Reset gioco
+        function resetGame() {
+            if (gameActive) {
+                gameActive = false;
+                clearInterval(timerInterval);
+            }
+            
+            score = 0;
+            level = 1;
+            gameTimer = 60;
+            difficulty = 1;
+            activeMoles.forEach(mole => {
+                mole.element.classList.remove('active');
+                clearTimeout(mole.timeout);
+            });
+            activeMoles = [];
+            
+            updateDisplay();
+            document.getElementById('startBtn').textContent = 'Inizia Gioco';
+            document.getElementById('startBtn').disabled = false;
+            closeGameOver();
+        }
+
+        // Inizializza il gioco
+        initGrid();
+        updateDisplay();
+    </script>
+    </script>
+</body>
+</html>
