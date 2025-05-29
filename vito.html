@@ -8,6 +8,8 @@
         * {
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            user-select: none;
         }
 
         body {
@@ -101,25 +103,22 @@
             border-radius: 50%;
             position: relative;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.1s ease;
             box-shadow: 
                 inset 0 5px 15px rgba(0, 0, 0, 0.7),
                 0 3px 10px rgba(0, 0, 0, 0.3);
+            -webkit-tap-highlight-color: transparent;
         }
 
-        .hole:active, .hole.touched {
+        .hole:active {
             transform: scale(0.95);
-            background: radial-gradient(circle at center, #3c2820 0%, #2a1f18 100%);
         }
 
-        .hole.hit-feedback {
-            animation: holeHit 0.2s ease-out;
-        }
-
-        @keyframes holeHit {
-            0% { transform: scale(1); }
-            50% { transform: scale(0.9); background: radial-gradient(circle at center, #4c3830 0%, #3a2f28 100%); }
-            100% { transform: scale(1); }
+        .hole.touched {
+            transform: scale(0.9);
+            box-shadow: 
+                inset 0 8px 20px rgba(0, 0, 0, 0.8),
+                0 1px 5px rgba(0, 0, 0, 0.5);
         }
 
         .mole {
@@ -140,6 +139,7 @@
             background-repeat: no-repeat;
             border: 2px solid transparent;
             overflow: hidden;
+            pointer-events: none;
         }
 
         .mole.good {
@@ -163,6 +163,7 @@
 
         .mole.active {
             transform: translate(-50%, -50%) scale(1);
+            pointer-events: auto;
         }
 
         .mole.hit {
@@ -196,6 +197,7 @@
             flex: 1;
             min-width: 120px;
             max-width: 200px;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .btn:active {
@@ -383,7 +385,7 @@
         </div>
 
         <div class="controls">
-            <button class="btn" id="startBtn" onclick="startGame()">Inizia Gioco</button>
+            <button class="btn" id="startBtn" onclick="startGame()">Inizia Con la Nana</button>
             <button class="btn" id="resetBtn" onclick="resetGame()">Reset</button>
             <button class="btn" id="leaderboardBtn" onclick="showLeaderboard()">Classifica</button>
         </div>
@@ -452,7 +454,7 @@
         function saveScore() {
             const playerName = document.getElementById('playerName').value.trim();
             if (!playerName) {
-                alert('Inserisci il tuo nome!');
+                alert('Come cazzo dovrei chiamarti palla di lardo !');
                 return;
             }
 
@@ -467,14 +469,14 @@
             leaderboard.sort((a, b) => b.score - a.score);
             leaderboard = leaderboard.slice(0, 5); // Mantieni solo i top 5
 
-            // Salva nel localStorage
-            localStorage.setItem('whackMoleLeaderboard', JSON.stringify(leaderboard));
+            // Salva in memoria (non usa localStorage per compatibilità)
+            window.gameLeaderboard = leaderboard;
 
             // Mostra messaggio di conferma
             const rank = leaderboard.findIndex(entry => entry.name === playerName && entry.score === currentGameScore) + 1;
             let message = `Punteggio salvato! Sei al ${rank}° posto!`;
-            if (rank === 1) message = `🎉 Nuovo record! Sei il migliore!`;
-            else if (rank <= 3) message = `🏆 Ottimo! Sei sul podio al ${rank}° posto!`;
+            if (rank === 1) message = `🎉 Nuovo record! Sei il mignotta !`;
+            else if (rank <= 3) message = `🏆 Bravo minkkione! Sei sul podio al ${rank}° posto!`;
 
             document.getElementById('scoreMessageText').textContent = message;
             document.getElementById('nameInput').style.display = 'none';
@@ -482,8 +484,7 @@
         }
 
         function getLeaderboard() {
-            const saved = localStorage.getItem('whackMoleLeaderboard');
-            return saved ? JSON.parse(saved) : [];
+            return window.gameLeaderboard || [];
         }
 
         function showLeaderboard() {
@@ -491,7 +492,7 @@
             const listElement = document.getElementById('leaderboardList');
             
             if (leaderboard.length === 0) {
-                listElement.innerHTML = '<p style="text-align: center; opacity: 0.8;">Nessun punteggio salvato ancora.</p>';
+                listElement.innerHTML = '<p style="text-align: center; opacity: 0.8;">Ancora nessun minkkione.</p>';
             } else {
                 listElement.innerHTML = '<h3>🏆 Top 5 Giocatori</h3>';
                 leaderboard.forEach((entry, index) => {
@@ -515,12 +516,12 @@
 
         function clearLeaderboard() {
             if (confirm('Sei sicuro di voler cancellare tutta la classifica?')) {
-                localStorage.removeItem('whackMoleLeaderboard');
+                window.gameLeaderboard = [];
                 showLeaderboard(); // Ricarica la vista
             }
         }
 
-        // Inizializza la griglia con controlli touch avanzati
+        // Inizializza la griglia con supporto touch migliorato
         function initGrid() {
             const grid = document.getElementById('gameGrid');
             grid.innerHTML = '';
@@ -530,60 +531,52 @@
                 hole.className = 'hole';
                 hole.innerHTML = '<div class="mole" id="mole' + i + '"></div>';
                 
-                // Gestione eventi touch e click
-                let touchStartTime = 0;
-                let touchMoved = false;
+                // Gestione touch migliorata per mobile
+                let touchStarted = false;
                 
                 // Touch events
                 hole.addEventListener('touchstart', (e) => {
                     e.preventDefault();
-                    touchStartTime = Date.now();
-                    touchMoved = false;
+                    e.stopPropagation();
+                    touchStarted = true;
                     hole.classList.add('touched');
-                    
-                    // Feedback aptico su dispositivi supportati
-                    if (navigator.vibrate) {
-                        navigator.vibrate(10);
-                    }
-                });
-                
-                hole.addEventListener('touchmove', (e) => {
-                    e.preventDefault();
-                    touchMoved = true;
-                });
+                }, { passive: false });
                 
                 hole.addEventListener('touchend', (e) => {
                     e.preventDefault();
+                    e.stopPropagation();
                     hole.classList.remove('touched');
-                    
-                    const touchDuration = Date.now() - touchStartTime;
-                    
-                    // Considera valido il tap solo se breve e senza movimento
-                    if (!touchMoved && touchDuration < 300) {
-                        hole.classList.add('hit-feedback');
-                        setTimeout(() => hole.classList.remove('hit-feedback'), 200);
+                    if (touchStarted) {
                         hitHole(i);
+                        touchStarted = false;
                     }
-                });
+                }, { passive: false });
                 
                 hole.addEventListener('touchcancel', (e) => {
                     e.preventDefault();
                     hole.classList.remove('touched');
+                    touchStarted = false;
+                }, { passive: false });
+                
+                // Mouse events per desktop
+                hole.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    if (!touchStarted) {
+                        hole.classList.add('touched');
+                    }
                 });
                 
-                // Click events per desktop
-                hole.addEventListener('click', (e) => {
+                hole.addEventListener('mouseup', (e) => {
                     e.preventDefault();
-                    if (!('ontouchstart' in window)) { // Solo se non è un dispositivo touch
-                        hole.classList.add('hit-feedback');
-                        setTimeout(() => hole.classList.remove('hit-feedback'), 200);
+                    hole.classList.remove('touched');
+                    if (!touchStarted) {
                         hitHole(i);
                     }
                 });
                 
-                // Previeni selezione del testo
-                hole.addEventListener('selectstart', (e) => e.preventDefault());
-                hole.addEventListener('dragstart', (e) => e.preventDefault());
+                hole.addEventListener('mouseleave', (e) => {
+                    hole.classList.remove('touched');
+                });
                 
                 grid.appendChild(hole);
             }
@@ -637,14 +630,14 @@
                 updateDisplay();
                 
                 if (gameTimer <= 0) {
-                    endGame('Tempo scaduto!');
+                    endGame('Cazzo dormi a fare !');
                 }
             }, 1000);
             
             spawnMole();
         }
 
-        // Spawna una talpa (ottimizzata per mobile)
+        // Spawna una talpa
         function spawnMole() {
             if (!gameActive) return;
             
@@ -655,13 +648,16 @@
                 }
             }
             
-            if (availableHoles.length === 0) return;
+            if (availableHoles.length === 0) {
+                setTimeout(spawnMole, 300);
+                return;
+            }
             
             const holeIndex = availableHoles[Math.floor(Math.random() * availableHoles.length)];
             const mole = document.getElementById('mole' + holeIndex);
             
-            const isGood = Math.random() < 0.65; // Leggermente più facile su mobile
-            const duration = Math.max(1000, 2200 - (difficulty * 200)); // Durata leggermente più lunga per mobile
+            const isGood = Math.random() < 0.65;
+            const duration = Math.max(1200, 2400 - (difficulty * 200));
             
             mole.className = 'mole ' + (isGood ? 'good' : 'bad');
             setMoleImage(mole, isGood);
@@ -680,7 +676,7 @@
             
             activeMoles.push(moleData);
             
-            const nextSpawnTime = Math.max(600, 1700 - (difficulty * 150));
+            const nextSpawnTime = Math.max(800, 1900 - (difficulty * 150));
             setTimeout(spawnMole, nextSpawnTime);
         }
 
@@ -692,7 +688,7 @@
             const moleData = activeMoles[moleIndex];
             
             if (isTimeout && moleData.isGood) {
-                changeScore(-10, holeIndex); // Penalità ridotta per mobile
+                changeScore(-10, holeIndex);
             }
             
             moleData.element.classList.remove('active');
@@ -700,35 +696,25 @@
             activeMoles.splice(moleIndex, 1);
         }
 
-        // Gestione click/touch sulla buca con feedback migliorato
+        // Gestione hit con debounce per evitare doppi click
+        let lastHit = 0;
         function hitHole(holeIndex) {
             if (!gameActive) return;
             
+            const now = Date.now();
+            if (now - lastHit < 100) return; // Debounce di 100ms
+            lastHit = now;
+            
             const moleData = activeMoles.find(m => m.hole === holeIndex);
-            if (!moleData) {
-                // Feedback per tap a vuoto
-                if (navigator.vibrate) {
-                    navigator.vibrate([20, 10, 20]); // Vibrazione doppia per indicare errore
-                }
-                return;
-            }
+            if (!moleData) return;
             
             const mole = moleData.element;
             mole.classList.add('hit');
             
-            // Feedback aptico per colpo riuscito
-            if (navigator.vibrate) {
-                if (moleData.isGood) {
-                    navigator.vibrate(30); // Vibrazione lunga per successo
-                } else {
-                    navigator.vibrate([50, 50, 50]); // Vibrazione tripla per pericolo
-                }
-            }
-            
             if (moleData.isGood) {
                 changeScore(10, holeIndex);
             } else {
-                endGame('Hai colpito il pericolo!');
+                endGame('Hai colpito la minkkia!');
                 return;
             }
             
@@ -829,19 +815,18 @@
             closeGameOver();
         }
 
-        // Inizializza il gioco con ottimizzazioni touch
+        // Inizializza il gioco
         initGrid();
         updateDisplay();
         
-        // Gestione avanzata per dispositivi touch
-        document.addEventListener('touchstart', function(e) {
-            // Previeni comportamenti di default solo sugli elementi del gioco
-            if (e.target.closest('.game-grid') || e.target.closest('.btn')) {
+        // Previeni comportamenti indesiderati su mobile
+        document.addEventListener('touchmove', function(e) {
+            if (e.target.closest('.game-grid')) {
                 e.preventDefault();
             }
         }, { passive: false });
         
-        // Previeni zoom su doppio tap per iOS e Android
+        // Previeni zoom su doppio tap
         let lastTouchEnd = 0;
         document.addEventListener('touchend', function (event) {
             const now = (new Date()).getTime();
@@ -851,27 +836,12 @@
             lastTouchEnd = now;
         }, false);
         
-        // Migliora le performance su dispositivi touch
-        document.addEventListener('touchmove', function(e) {
+        // Previeni menu contestuale su long press
+        document.addEventListener('contextmenu', function(e) {
             if (e.target.closest('.game-grid')) {
                 e.preventDefault();
             }
-        }, { passive: false });
-        
-        // Feedback per orientamento dispositivo
-        if (window.screen && window.screen.orientation) {
-            function handleOrientationChange() {
-                // Piccola pausa per permettere il re-render
-                setTimeout(() => {
-                    const holes = document.querySelectorAll('.hole');
-                    holes.forEach(hole => {
-                        hole.style.transition = 'all 0.3s ease';
-                    });
-                }, 100);
-            }
-            
-            window.screen.orientation.addEventListener('change', handleOrientationChange);
-        }
+        });
     </script>
 </body>
 </html>
