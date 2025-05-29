@@ -107,8 +107,19 @@
                 0 3px 10px rgba(0, 0, 0, 0.3);
         }
 
-        .hole:active {
+        .hole:active, .hole.touched {
             transform: scale(0.95);
+            background: radial-gradient(circle at center, #3c2820 0%, #2a1f18 100%);
+        }
+
+        .hole.hit-feedback {
+            animation: holeHit 0.2s ease-out;
+        }
+
+        @keyframes holeHit {
+            0% { transform: scale(1); }
+            50% { transform: scale(0.9); background: radial-gradient(circle at center, #4c3830 0%, #3a2f28 100%); }
+            100% { transform: scale(1); }
         }
 
         .mole {
@@ -372,7 +383,7 @@
         </div>
 
         <div class="controls">
-            <button class="btn" id="startBtn" onclick="startGame()">Inizia Con la Nana</button>
+            <button class="btn" id="startBtn" onclick="startGame()">Inizia Gioco</button>
             <button class="btn" id="resetBtn" onclick="resetGame()">Reset</button>
             <button class="btn" id="leaderboardBtn" onclick="showLeaderboard()">Classifica</button>
         </div>
@@ -441,7 +452,7 @@
         function saveScore() {
             const playerName = document.getElementById('playerName').value.trim();
             if (!playerName) {
-                alert('Come cazzo dovrei chiamarti palla di lardo !');
+                alert('Inserisci il tuo nome!');
                 return;
             }
 
@@ -462,8 +473,8 @@
             // Mostra messaggio di conferma
             const rank = leaderboard.findIndex(entry => entry.name === playerName && entry.score === currentGameScore) + 1;
             let message = `Punteggio salvato! Sei al ${rank}° posto!`;
-            if (rank === 1) message = `🎉 Nuovo record! Sei il mignotta !`;
-            else if (rank <= 3) message = `🏆 Bravo minkkione! Sei sul podio al ${rank}° posto!`;
+            if (rank === 1) message = `🎉 Nuovo record! Sei il migliore!`;
+            else if (rank <= 3) message = `🏆 Ottimo! Sei sul podio al ${rank}° posto!`;
 
             document.getElementById('scoreMessageText').textContent = message;
             document.getElementById('nameInput').style.display = 'none';
@@ -480,7 +491,7 @@
             const listElement = document.getElementById('leaderboardList');
             
             if (leaderboard.length === 0) {
-                listElement.innerHTML = '<p style="text-align: center; opacity: 0.8;">Ancora nessun minkkione.</p>';
+                listElement.innerHTML = '<p style="text-align: center; opacity: 0.8;">Nessun punteggio salvato ancora.</p>';
             } else {
                 listElement.innerHTML = '<h3>🏆 Top 5 Giocatori</h3>';
                 leaderboard.forEach((entry, index) => {
@@ -509,7 +520,7 @@
             }
         }
 
-        // Inizializza la griglia (adattata per mobile)
+        // Inizializza la griglia con controlli touch avanzati
         function initGrid() {
             const grid = document.getElementById('gameGrid');
             grid.innerHTML = '';
@@ -518,14 +529,62 @@
                 const hole = document.createElement('div');
                 hole.className = 'hole';
                 hole.innerHTML = '<div class="mole" id="mole' + i + '"></div>';
-                hole.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    hitHole(i);
-                });
-                // Supporto touch per mobile
+                
+                // Gestione eventi touch e click
+                let touchStartTime = 0;
+                let touchMoved = false;
+                
+                // Touch events
                 hole.addEventListener('touchstart', (e) => {
                     e.preventDefault();
+                    touchStartTime = Date.now();
+                    touchMoved = false;
+                    hole.classList.add('touched');
+                    
+                    // Feedback aptico su dispositivi supportati
+                    if (navigator.vibrate) {
+                        navigator.vibrate(10);
+                    }
                 });
+                
+                hole.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    touchMoved = true;
+                });
+                
+                hole.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    hole.classList.remove('touched');
+                    
+                    const touchDuration = Date.now() - touchStartTime;
+                    
+                    // Considera valido il tap solo se breve e senza movimento
+                    if (!touchMoved && touchDuration < 300) {
+                        hole.classList.add('hit-feedback');
+                        setTimeout(() => hole.classList.remove('hit-feedback'), 200);
+                        hitHole(i);
+                    }
+                });
+                
+                hole.addEventListener('touchcancel', (e) => {
+                    e.preventDefault();
+                    hole.classList.remove('touched');
+                });
+                
+                // Click events per desktop
+                hole.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    if (!('ontouchstart' in window)) { // Solo se non è un dispositivo touch
+                        hole.classList.add('hit-feedback');
+                        setTimeout(() => hole.classList.remove('hit-feedback'), 200);
+                        hitHole(i);
+                    }
+                });
+                
+                // Previeni selezione del testo
+                hole.addEventListener('selectstart', (e) => e.preventDefault());
+                hole.addEventListener('dragstart', (e) => e.preventDefault());
+                
                 grid.appendChild(hole);
             }
         }
@@ -578,7 +637,7 @@
                 updateDisplay();
                 
                 if (gameTimer <= 0) {
-                    endGame('Cazzo dormi a fare !');
+                    endGame('Tempo scaduto!');
                 }
             }, 1000);
             
@@ -641,20 +700,35 @@
             activeMoles.splice(moleIndex, 1);
         }
 
-        // Gestione click sulla buca
+        // Gestione click/touch sulla buca con feedback migliorato
         function hitHole(holeIndex) {
             if (!gameActive) return;
             
             const moleData = activeMoles.find(m => m.hole === holeIndex);
-            if (!moleData) return;
+            if (!moleData) {
+                // Feedback per tap a vuoto
+                if (navigator.vibrate) {
+                    navigator.vibrate([20, 10, 20]); // Vibrazione doppia per indicare errore
+                }
+                return;
+            }
             
             const mole = moleData.element;
             mole.classList.add('hit');
             
+            // Feedback aptico per colpo riuscito
+            if (navigator.vibrate) {
+                if (moleData.isGood) {
+                    navigator.vibrate(30); // Vibrazione lunga per successo
+                } else {
+                    navigator.vibrate([50, 50, 50]); // Vibrazione tripla per pericolo
+                }
+            }
+            
             if (moleData.isGood) {
                 changeScore(10, holeIndex);
             } else {
-                endGame('Hai colpito la minkkia!');
+                endGame('Hai colpito il pericolo!');
                 return;
             }
             
@@ -755,11 +829,19 @@
             closeGameOver();
         }
 
-        // Inizializza il gioco
+        // Inizializza il gioco con ottimizzazioni touch
         initGrid();
         updateDisplay();
         
-        // Previeni zoom su doppio tap per iOS
+        // Gestione avanzata per dispositivi touch
+        document.addEventListener('touchstart', function(e) {
+            // Previeni comportamenti di default solo sugli elementi del gioco
+            if (e.target.closest('.game-grid') || e.target.closest('.btn')) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+        
+        // Previeni zoom su doppio tap per iOS e Android
         let lastTouchEnd = 0;
         document.addEventListener('touchend', function (event) {
             const now = (new Date()).getTime();
@@ -768,6 +850,28 @@
             }
             lastTouchEnd = now;
         }, false);
+        
+        // Migliora le performance su dispositivi touch
+        document.addEventListener('touchmove', function(e) {
+            if (e.target.closest('.game-grid')) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+        
+        // Feedback per orientamento dispositivo
+        if (window.screen && window.screen.orientation) {
+            function handleOrientationChange() {
+                // Piccola pausa per permettere il re-render
+                setTimeout(() => {
+                    const holes = document.querySelectorAll('.hole');
+                    holes.forEach(hole => {
+                        hole.style.transition = 'all 0.3s ease';
+                    });
+                }, 100);
+            }
+            
+            window.screen.orientation.addEventListener('change', handleOrientationChange);
+        }
     </script>
 </body>
 </html>
